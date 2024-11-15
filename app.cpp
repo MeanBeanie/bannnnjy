@@ -108,24 +108,36 @@ void App::run(){
 
 		float barWidth = window.getSize().x - (20*scales[1]);
 		int lowest = 99;
-		for(int i = 1; i < 32; i++){
-			int dist = std::abs(((barWidth*i)/24)-mousePos.x);
-			if(dist < lowest){
-				if(timeSig[1]/lastBeatDiv(i).div == 2 && i - lastBeatDiv(i).beat < 2){
-					continue;
+		if(timeSig[1]/division > 0){
+			for(int i = 1; i < 32; i++){
+				int dist = std::abs(((barWidth*i)/24)-mousePos.x);
+				if(dist < lowest){
+					if(timeSig[1]/lastBeatDiv(i).div == 2 && i - lastBeatDiv(i).beat < 2){
+						continue;
+					}
+					else if(timeSig[1]/lastBeatDiv(i).div == 4 && i - lastBeatDiv(i).beat < 4){
+						continue; 
+					} 
+					else if(timeSig[1]/lastBeatDiv(i).div == 8 && i - lastBeatDiv(i).beat < 8){
+						continue;
+					}
+					else if(timeSig[1]/lastBeatDiv(i).div == 16 && i - lastBeatDiv(i).beat < 16){
+						continue;
+					}
+					lowest = dist;
+					cursorPos.x = (barWidth*i)/24;
+					selected[1] = i;
 				}
-				else if(timeSig[1]/lastBeatDiv(i).div == 4 && i - lastBeatDiv(i).beat < 4){
-					continue; 
-				} 
-				else if(timeSig[1]/lastBeatDiv(i).div == 8 && i - lastBeatDiv(i).beat < 8){
-					continue;
+			}
+		}
+		else{
+			for(float i = 0.f; i < 32.f; i += (float)timeSig[1]/(float)division){
+				int dist = std::abs(((barWidth*i)/24)-mousePos.x);
+				if(dist < lowest){
+					lowest = dist;
+					cursorPos.x = (barWidth*i)/24;
+					selected[1] = i;
 				}
-				else if(timeSig[1]/lastBeatDiv(i).div == 16 && i - lastBeatDiv(i).beat < 16){
-					continue;
-				}
-				lowest = dist;
-				cursorPos.x = (barWidth*i)/24;
-				selected[1] = i;
 			}
 		}
 
@@ -135,6 +147,7 @@ void App::run(){
 		noteText.setFont(font);
 		noteText.setFillColor(sf::Color::Black);
 		bool failed = true;
+		float beatsPassed = 0.f;
 		for(int i = 0; i < notes.size(); i++){
 			if(selected[1] == notes[i].beat && selected[0] == notes[i].line){
 				hoveringNote = i;
@@ -144,6 +157,7 @@ void App::run(){
 			noteText.setString(std::to_string(notes[i].fret));
 
 			noteText.setPosition((notes[i].beat*barWidth)/24, (notes[i].line*scales[1]) - noteText.getGlobalBounds().height);
+			beatsPassed += (float)timeSig[1]/(float)notes[i].division;
 			window.draw(noteText);
 		}
 		if(failed){
@@ -221,8 +235,21 @@ void App::onClick(sf::Event event){
 		}
 		else if(mousePos.y > 35*scales[1] && (mousePos.x > 10*scales[1] && mousePos.x < window.getSize().x - (20*scales[1]))){
 			if(hoveringNote >= 0){
-				// literally cant change anything else with the way note edits work
 				notes[hoveringNote].fret = fret;
+				bool failed = false;
+				for(int i = 0; i < notes.size(); i++){
+					if(i == hoveringNote){
+						continue;
+					}
+					if(notes[i].beat == selected[1]){
+						if(division != notes[i].division){
+							failed = true;
+						}
+					}
+				}
+				if(!failed){
+					notes[hoveringNote].division = division;
+				}
 			}
 			else{
 				Note note;
@@ -361,8 +388,10 @@ Data App::lastBeatDiv(int beat){
 	// again linear search slow, my brain is the same
 	int lowest = 99;
 	for(int i = 0; i < notes.size(); i++){
-		if(std::abs(beat - notes[i].beat) < lowest){
-			lowest = std::abs(beat - notes[i].beat);
+		// can't be in the future so must be above 0 to be behind
+		int dist = beat - notes[i].beat;
+		if(dist > 0 && dist < lowest){
+			lowest = dist;
 			data.beat = notes[i].beat;
 			data.div = notes[i].division;
 		}
