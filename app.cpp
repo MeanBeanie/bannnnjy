@@ -73,7 +73,6 @@ void App::run(){
 		window.draw(titleLabel);
 
 		bool drawCurs = true;
-
 		sf::Vector2f cursorPos;
 		int count = 0;
 		int stanzaStart = 0;
@@ -116,38 +115,34 @@ void App::run(){
 
 		float barWidth = window.getSize().x - (20*scales[1]);
 		int lowest = 99;
-		if(timeSig[1]/division > 0){
-			for(int i = 1; i < 24; i++){
-				int dist = std::abs(((barWidth*i)/24)-mousePos.x);
-				if(dist < lowest){
-					if(timeSig[1]/lastBeatDiv(i).div == 2 && i - lastBeatDiv(i).beat < 2){
-						continue;
-					}
-					else if(timeSig[1]/lastBeatDiv(i).div == 4 && i - lastBeatDiv(i).beat < 4){
-						continue; 
-					} 
-					else if(timeSig[1]/lastBeatDiv(i).div == 8 && i - lastBeatDiv(i).beat < 8){
-						continue;
-					}
-					else if(timeSig[1]/lastBeatDiv(i).div == 16 && i - lastBeatDiv(i).beat < 16){
-						continue;
-					}
-					lowest = dist;
-					cursorPos.x = (barWidth*i)/24;
-					selected[1] = i;
+		for(float i = 1; i < 24.f; i += (float)timeSig[1]/(float)division){
+			int dist = std::abs(((barWidth*i)/24)-mousePos.x);
+			if(dist < lowest){
+				if(timeSig[1]/lastBeatDiv(i).div == 2 && i - lastBeatDiv(i).beat < 2){
+					continue;
 				}
+				else if(timeSig[1]/lastBeatDiv(i).div == 4 && i - lastBeatDiv(i).beat < 4){
+					continue; 
+				} 
+				else if(timeSig[1]/lastBeatDiv(i).div == 8 && i - lastBeatDiv(i).beat < 8){
+					continue;
+				}
+				else if(timeSig[1]/lastBeatDiv(i).div == 16 && i - lastBeatDiv(i).beat < 16){
+					continue;
+				}
+				lowest = dist;
+				cursorPos.x = (barWidth*i)/24;
+				selected[1] = i;
 			}
 		}
-		else{
-			for(float i = 0.f; i < 32.f; i += (float)timeSig[1]/(float)division){
-				int dist = std::abs(((barWidth*i)/24)-mousePos.x);
-				if(dist < lowest){
-					lowest = dist;
-					cursorPos.x = (barWidth*i)/24;
-					selected[1] = i;
-				}
-			}
-		}
+//			for(float i = 0.f; i < 32.f; i += (float)timeSig[1]/(float)division){
+//				int dist = std::abs(((barWidth*i)/24)-mousePos.x);
+//				if(dist < lowest){
+//					lowest = dist;
+//					cursorPos.x = (barWidth*i)/24;
+//					selected[1] = i;
+//				}
+//			}
 
 		sf::Text noteText;
 		noteText.setCharacterSize(CHAR_SIZE);
@@ -162,6 +157,12 @@ void App::run(){
 				drawCurs = false;
 			}
 			noteText.setString(std::to_string(notes[i].fret));
+			if(notes[i].isOver){
+				noteText.setFillColor(sf::Color::Red);
+			}
+			else{
+				noteText.setFillColor(sf::Color::Black);
+			}
 
 			noteText.setPosition((notes[i].beat*barWidth)/24, (notes[i].line*scales[1]) - noteText.getGlobalBounds().height);
 			window.draw(noteText);
@@ -178,7 +179,10 @@ void App::run(){
 				if(divAtBeat(i, j).div != -1){
 					beatsPassed += (float)timeSig[1]/(float)divAtBeat(i, j).div;
 				}
-				if(beatsPassed == timeSig[0]){
+				if(beatsPassed >= timeSig[0]){
+					if(beatsPassed > timeSig[0]){
+						notes[divAtBeat(i).index].isOver = true;
+					} 
 					sf::RectangleShape rect(sf::Vector2f(scales[0], 40*scales[1]));
 					rect.setFillColor(sf::Color::Black);
 					if(timeSig[1]/divAtBeat(i).div <= 1){
@@ -271,6 +275,12 @@ void App::onClick(sf::Event event){
 			title.clear();
 			status = 1;
 		}
+		else if(timeSigLabels[0].getGlobalBounds().contains(mousePos)){
+			status = 2;
+		} 
+		else if(timeSigLabels[1].getGlobalBounds().contains(mousePos)){
+			status = 3;
+		} 
 		else if(mousePos.y > 35*scales[1] && (mousePos.x > 10*scales[1] && mousePos.x < window.getSize().x - (20*scales[1]))){
 			if(hoveringNote >= 0){
 				notes[hoveringNote].fret = fret;
@@ -388,6 +398,18 @@ void App::keyboardCallback(sf::Event event){
 		titleLabel.setString(title);
 		titleLabel.setPosition(window.getSize().x-(10*scales[0])-(titleLabel.getGlobalBounds().width), 2*scales[1]);
 	}
+	else if(status == 2){
+		if(event.key.code >= sf::Keyboard::Num1 && event.key.code <= sf::Keyboard::Num9){
+			timeSig[0] = event.key.code - sf::Keyboard::Num0;
+			status = 0;
+		}
+	}
+	else if(status == 3){
+		if(event.key.code == sf::Keyboard::Num8 || event.key.code == sf::Keyboard::Num4 || event.key.code == sf::Keyboard::Num2){
+			timeSig[1] = event.key.code - sf::Keyboard::Num0;
+			status = 0;
+		}
+	}
 	else{
 		if(event.key.code == sf::Keyboard::Tab){
 			changeDivision(!event.key.shift, true);
@@ -423,8 +445,9 @@ void App::keyboardCallback(sf::Event event){
 }
 
 // prayers and so much duct tape
-Data App::lastBeatDiv(int beat){
+Data App::lastBeatDiv(float beat){
 	Data data;
+	data.div = -1;
 	// again linear search slow, my brain is the same
 	int lowest = 99;
 	for(int i = 0; i < notes.size(); i++){
@@ -445,6 +468,7 @@ Data App::divAtBeat(float beat, int stanza){
 	for(int i = 0; i < notes.size(); i++){
 		if(notes[i].beat == beat && notes[i].stanza == stanza){
 			data.div = notes[i].division;
+			data.index = i;
 			data.stanzaStart = notes[i].stanzaStart;
 			data.stanza = notes[i].stanza;
 		}

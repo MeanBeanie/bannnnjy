@@ -13,6 +13,7 @@ const int CHAR_SIZE = 64;
 struct Note {
 	Note(){};
 
+	bool isOver = false;
 	int division;
 	int fret;
 	float beat;
@@ -24,8 +25,9 @@ struct Note {
 struct Data {
 	Data(){};
 
+	int index = 0;
 	int div;
-	int beat;
+	float beat;
 	int stanzaStart;
 	int stanza;
 };
@@ -45,7 +47,7 @@ class App{
 		void changeFret(bool up = true, int specific = -1);
 
 		// my soul died then was reborn because of this
-		Data lastBeatDiv(int beat);
+		Data lastBeatDiv(float beat);
 		Data divAtBeat(float beat, int stanza=0);
 
 		int status = 0;
