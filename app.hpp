@@ -17,6 +17,8 @@ struct Note {
 	int fret;
 	float beat;
 	int line;
+	int stanzaStart;
+	int stanza;
 };
 
 struct Data {
@@ -24,6 +26,8 @@ struct Data {
 
 	int div;
 	int beat;
+	int stanzaStart;
+	int stanza;
 };
 
 class App{
@@ -42,11 +46,12 @@ class App{
 
 		// my soul died then was reborn because of this
 		Data lastBeatDiv(int beat);
+		Data divAtBeat(float beat, int stanza=0);
 
 		int status = 0;
 		float scales[2] = {1.0f, 1.0f};
 		sf::Vector2f mousePos;
-		float selected[2] = {-1, 0};
+		float selected[4] = {-1, 0, -1, -1};
 		int hoveringNote = -1;
 
 		int division = 2;

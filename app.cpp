@@ -76,8 +76,14 @@ void App::run(){
 
 		sf::Vector2f cursorPos;
 		int count = 0;
+		int stanzaStart = 0;
+		int stanza = -1;
 		for(int i = 40*scales[1]; i+((5-count)*scales[1]) < 440*scales[1]; i += ((440*scales[1])-(40*scales[1]))/40){
-			if(count == 5){
+			if(count == 0){
+				stanzaStart = i;
+				stanza++;
+			}
+			else if(count == 5){
 				count++;
 				continue;
 			}
@@ -100,6 +106,8 @@ void App::run(){
 			if(std::abs(mousePos.y - i) < 10*scales[1]){
 				cursorPos.y = i - cursor.getRadius();
 				selected[0] = i / scales[1];
+				selected[2] = stanzaStart / scales[1];
+				selected[3] = stanza;
 			}
 
 			window.draw(r);
@@ -109,7 +117,7 @@ void App::run(){
 		float barWidth = window.getSize().x - (20*scales[1]);
 		int lowest = 99;
 		if(timeSig[1]/division > 0){
-			for(int i = 1; i < 32; i++){
+			for(int i = 1; i < 24; i++){
 				int dist = std::abs(((barWidth*i)/24)-mousePos.x);
 				if(dist < lowest){
 					if(timeSig[1]/lastBeatDiv(i).div == 2 && i - lastBeatDiv(i).beat < 2){
@@ -147,7 +155,6 @@ void App::run(){
 		noteText.setFont(font);
 		noteText.setFillColor(sf::Color::Black);
 		bool failed = true;
-		float beatsPassed = 0.f;
 		for(int i = 0; i < notes.size(); i++){
 			if(selected[1] == notes[i].beat && selected[0] == notes[i].line){
 				hoveringNote = i;
@@ -157,11 +164,42 @@ void App::run(){
 			noteText.setString(std::to_string(notes[i].fret));
 
 			noteText.setPosition((notes[i].beat*barWidth)/24, (notes[i].line*scales[1]) - noteText.getGlobalBounds().height);
-			beatsPassed += (float)timeSig[1]/(float)notes[i].division;
 			window.draw(noteText);
 		}
 		if(failed){
 			hoveringNote = -1;
+		}
+
+		// measure line arteeste
+		for(int j = 0; j < stanza; j++){
+			// goes by 1/16ths to account for a x/1 time sig with 1/16th notes
+			float beatsPassed = 0.f;
+			for(float i = 0; i < 24; i += 0.0625){
+				if(divAtBeat(i, j).div != -1){
+					beatsPassed += (float)timeSig[1]/(float)divAtBeat(i, j).div;
+				}
+				if(beatsPassed == timeSig[0]){
+					sf::RectangleShape rect(sf::Vector2f(scales[0], 40*scales[1]));
+					rect.setFillColor(sf::Color::Black);
+					if(timeSig[1]/divAtBeat(i).div <= 1){
+						rect.setPosition((((i)*barWidth)/24)+(10*scales[0]), divAtBeat(i, j).stanzaStart*scales[1]);
+					}
+					else if(timeSig[1]/divAtBeat(i).div == 2){
+						rect.setPosition((((i+1)*barWidth)/24)+(10*scales[0]), divAtBeat(i, j).stanzaStart*scales[1]);
+					}
+					else if(timeSig[1]/divAtBeat(i).div == 4){
+						rect.setPosition((((i+3)*barWidth)/24)+(10*scales[0]), divAtBeat(i, j).stanzaStart*scales[1]);
+					}
+					else if(timeSig[1]/divAtBeat(i).div == 8){
+						rect.setPosition((((i+7)*barWidth)/24)+(10*scales[0]), divAtBeat(i, j).stanzaStart*scales[1]);
+					}
+					else if(timeSig[1]/divAtBeat(i).div == 16){
+						rect.setPosition((((i+15)*barWidth)/24)+(10*scales[0]), divAtBeat(i, j).stanzaStart*scales[1]);
+					}
+					window.draw(rect);
+					beatsPassed = 0.f;
+				}
+			}
 		}
 
 		if(drawCurs && mousePos.y > 35*scales[1] && (mousePos.x > 10*scales[1] && mousePos.x < window.getSize().x - (20*scales[1]))){
@@ -257,6 +295,8 @@ void App::onClick(sf::Event event){
 				note.division = division;
 				note.line = selected[0];
 				note.beat = selected[1];
+				note.stanzaStart = selected[2];
+				note.stanza = selected[3];
 				// i know linear search is slower than my mile time
 				// but like fuck you i dont wanna do this efficiently
 				bool failed = false;
@@ -394,6 +434,19 @@ Data App::lastBeatDiv(int beat){
 			lowest = dist;
 			data.beat = notes[i].beat;
 			data.div = notes[i].division;
+		}
+	}
+	return data;
+}
+
+Data App::divAtBeat(float beat, int stanza){
+	Data data;
+	data.div = -1;
+	for(int i = 0; i < notes.size(); i++){
+		if(notes[i].beat == beat && notes[i].stanza == stanza){
+			data.div = notes[i].division;
+			data.stanzaStart = notes[i].stanzaStart;
+			data.stanza = notes[i].stanza;
 		}
 	}
 	return data;
