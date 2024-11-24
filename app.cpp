@@ -352,9 +352,41 @@ void App::deleteNote(){
 	if(selectedIndex < 0){
 		return;
 	}
-
 	auto range = towers.equal_range(selectedIndex);
-	for(auto i = range.first; i != range.second; i++){
+
+	// if hitting master node, move master node to first tower node
+	if(hoveredNote.lineIndex == notes[selectedIndex].lineIndex && hoveredNote.lineOffset == notes[selectedIndex].lineOffset){
+		bool foundTowerNode = false;
+		for(auto i = range.first; i != range.second; i++){
+			notes[selectedIndex] = i->second;
+			foundTowerNode = true;
+			towers.erase(i);
+			break;
+		}
+
+		if(!foundTowerNode){
+			notes.erase(notes.begin()+selectedIndex);
+			// iterate through towers more than the selected index and shift them back one
+			std::multimap<int, Note> temp;
+			for(auto i = towers.begin(); i != towers.end();){
+				if(i->first > selectedIndex){
+					int newKey = i->first-1;
+					Note val = i->second;
+					temp.insert({newKey, val});
+					i = towers.erase(i);
+				}
+			}
+
+			towers = std::move(temp);
+		}
+	}
+	else{
+		for(auto i = range.first; i != range.second; i++){
+			if(i->second.lineIndex == hoveredNote.lineIndex && i->second.lineOffset == hoveredNote.lineOffset){
+				towers.erase(i);
+				break;
+			}
+		}
 	}
 }
 
