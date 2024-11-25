@@ -190,7 +190,7 @@ void App::run(){
 					window.draw(eightNoteCurly);
 				}
 			}
-			if(notes[i].division == 16){
+			else if(notes[i].division == 16){
 				if(i+1 < notes.size()){
 					if(notes[i+1].division == 16 && beatsPassed + noteScale < timeSig[0]){
 						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
