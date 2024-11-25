@@ -124,8 +124,13 @@ void App::run(){
 		fred.setScale(scales[0]/4, scales[1]/4);
 		fred.setFillColor(sf::Color::Black);
 		
-		sf::RectangleShape measureBar(sf::Vector2f(3*scales[0], 50*scales[1]));
+		sf::RectangleShape measureBar(sf::Vector2f(2*scales[0], 50*scales[1]));
 		measureBar.setFillColor(sf::Color::Black);
+
+		sf::RectangleShape divisionIndicator(sf::Vector2f(scales[0], 18*scales[1]));
+		divisionIndicator.setFillColor(sf::Color::Black);
+		sf::RectangleShape dualFractyNotes(sf::Vector2f(35*scales[0], scales[1]));
+		dualFractyNotes.setFillColor(sf::Color::Black);
 
 		selectedIndex = -1;
 		for(int i = 0; i < notes.size(); i++){
@@ -134,6 +139,51 @@ void App::run(){
 			fred.setString(std::to_string(notes[i].fret));
 			fred.setPosition(x, linePixelStarties[lineIndex]+notes[i].lineOffset*10*scales[1]);
 			window.draw(fred);
+
+			divisionIndicator.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]);
+			if(notes[i].division == 8){
+				if(i+1 < notes.size()){
+					if(notes[i+1].division == 8 && beatsPassed + noteScale < timeSig[0]){
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+					}
+					else if(notes[i+1].division == 16 && beatsPassed + (timeSig[1]/16.f) < timeSig[0]){
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2)+17.5*scales[0]*noteScale, linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(17.5f*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+					}
+				}
+				else{
+					// draw lil curly
+				}
+			}
+			if(notes[i].division == 16){
+				if(i+1 < notes.size()){
+					if(notes[i+1].division == 16 && beatsPassed + noteScale < timeSig[0]){
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
+						window.draw(dualFractyNotes);
+					}
+					else if(notes[i+1].division == 8 && beatsPassed + (timeSig[1]/8.f) < timeSig[0]){
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(17.5f*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+					}
+				}
+				else{
+					// draw curly fry
+				}
+			}
+			window.draw(divisionIndicator);
 
 			if(towers.contains(i)){
 				auto range = towers.equal_range(i);
@@ -144,7 +194,7 @@ void App::run(){
 				}
 			}
 
-			if(std::abs(mousePos.x - x) < 30*scales[0] && std::abs(mousePos.x - x) < dist.x){
+			if(std::abs(mousePos.x - x) < 15*scales[0] && std::abs(mousePos.x - x) < dist.x){
 				dist.x = std::abs(mousePos.x - x);
 				selectedIndex = i;
 			}
@@ -369,12 +419,10 @@ void App::deleteNote(){
 			// iterate through towers more than the selected index and shift them back one
 			std::multimap<int, Note> temp;
 			for(auto i = towers.begin(); i != towers.end();){
-				if(i->first > selectedIndex){
-					int newKey = i->first-1;
-					Note val = i->second;
-					temp.insert({newKey, val});
-					i = towers.erase(i);
-				}
+				Note val = i->second;
+				int key = i->first;
+				temp.insert({key > selectedIndex ? key - 1 : key, val});
+				i = towers.erase(i);
 			}
 
 			towers = std::move(temp);
