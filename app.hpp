@@ -39,6 +39,11 @@ class App{
 		void changeFret(bool up = true, int specific = -1);
 		void deleteNote();
 
+		std::string getDocumentFolder();
+		void saveToFile();
+		void loadFromFile(std::string path);
+		void launchFileDialog();
+
 		int status = 0;
 		float scales[2] = {1.0f, 1.0f};
 		sf::Vector2f mousePos;
@@ -57,6 +62,10 @@ class App{
 		sf::Text fretChanger;
 		sf::Text titleLabel;
 		sf::Text timeSigLabels[2];
+		sf::Texture eightNoteCurlyTexture;
+		sf::Texture sixteenthNoteCurlyTexture;
+		sf::Sprite eightNoteCurly;
+		sf::Sprite sixteenthNoteCurly;
 
 		sf::RectangleShape sidebarBackground;
 };

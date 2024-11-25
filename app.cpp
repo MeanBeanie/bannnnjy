@@ -1,14 +1,26 @@
 #include "app.hpp"
+#include "portable-file-dialogs.h"
 #include <SFML/Graphics/CircleShape.hpp>
 #include <SFML/Graphics/Rect.hpp>
+#include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/Mouse.hpp>
 #include <SFML/Window/Window.h>
 #include <SFML/Window/WindowStyle.hpp>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <thread>
+#ifdef _WIN32
+#include <windows.h>
+#include <shlobj_core.h>
+#else
+#include <pwd.h>
+#include <unistd.h>
+#include <sys/types.h>
+#endif
 
 App::App(){
 	window.create(sf::VideoMode(800, 450), "Bbannjjyy");
@@ -46,6 +58,21 @@ App::App(){
 	}
 
 	hoveredNote.fret = 0;
+
+	if(!eightNoteCurlyTexture.loadFromFile("./rsrcs/eight-note-curl.png")){
+		std::cerr << "Failed to load texture for eight note properly" << std::endl;
+		status = -1;
+	}
+	if(!sixteenthNoteCurlyTexture.loadFromFile("./rsrcs/sixteeth-note-removebg-preview.png")){
+		std::cerr << "Failed to load texture for eight note properly" << std::endl;
+		status = -1;
+	}
+
+	eightNoteCurly.setTexture(eightNoteCurlyTexture);
+	eightNoteCurly.setScale(scales[0]/30, scales[1]/30);
+
+	sixteenthNoteCurly.setTexture(sixteenthNoteCurlyTexture);
+	sixteenthNoteCurly.setScale(scales[0]/30, scales[1]/30);
 }
 
 void App::run(){
@@ -157,8 +184,10 @@ void App::run(){
 						window.draw(dualFractyNotes);
 					}
 				}
-				else{
+				else if(i == 0 || (i-1 >= 0 && notes[i-1].division != 8 && notes[i-1].division != 16)){
 					// draw lil curly
+					eightNoteCurly.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]-(3*eightNoteCurly.getGlobalBounds().height)/4);
+					window.draw(eightNoteCurly);
 				}
 			}
 			if(notes[i].division == 16){
@@ -179,8 +208,10 @@ void App::run(){
 						window.draw(dualFractyNotes);
 					}
 				}
-				else{
+				else if(i == 0 || (i-1 >= 0 && notes[i-1].division != 8 && notes[i-1].division != 16)){
 					// draw curly fry
+					sixteenthNoteCurly.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]-sixteenthNoteCurly.getGlobalBounds().height);
+					window.draw(sixteenthNoteCurly);
 				}
 			}
 			window.draw(divisionIndicator);
@@ -240,6 +271,141 @@ void App::quit(){
 	window.close();
 }
 
+std::string App::getDocumentFolder(){
+	std::string documentsPath;
+
+	#ifdef _WIN32
+    PWSTR path = nullptr;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, nullptr, &path))) {
+        char buffer[MAX_PATH];
+        wcstombs(buffer, path, MAX_PATH);
+        documentsPath = buffer;
+        CoTaskMemFree(path);
+    } else {
+        throw std::runtime_error("Failed to retrieve Documents folder path.");
+    }
+	#else
+    const char* homeDir = getenv("HOME");
+    if (!homeDir) {
+        struct passwd* pw = getpwuid(getuid());
+        homeDir = pw ? pw->pw_dir : nullptr;
+    }
+    if (!homeDir) {
+        throw std::runtime_error("Failed to retrieve home directory.");
+    }
+
+    documentsPath = std::string(homeDir) + "/Documents";
+	#endif
+	
+	return documentsPath;
+}
+
+void App::saveToFile(){
+	std::string text;
+	text += title;
+	text += "\n";
+	text += std::to_string(timeSig[0]);
+	text += "/";
+	text += std::to_string(timeSig[1]);
+	text += "\n";
+
+	for(int i = 0; i < notes.size(); i++){
+		text += std::to_string(notes[i].lineIndex);
+		text += ",";
+		text += std::to_string(notes[i].lineOffset);
+		text += ",";
+		text += std::to_string(notes[i].division);
+		text += ",";
+		text += std::to_string(notes[i].fret);
+		text += ";";
+	}
+
+	try {
+		std::string documentPath = getDocumentFolder();
+		if(!std::filesystem::exists(documentPath+"/Banji")){
+			std::filesystem::create_directory(documentPath+"/Banji");
+		}
+		std::ofstream file(documentPath + "/Banji/" + title + ".banji");
+		if(file){
+			file << text;
+			file.close();
+		}
+		else{
+			std::cerr << "Failed to create file" << std::endl;
+		}
+	}
+	catch(const std::exception& e){
+		std::cerr << e.what() << std::endl;
+	}
+}
+
+void App::loadFromFile(std::string path){
+	std::ifstream file(path);
+	std::istream_iterator<std::string> start(file), end;
+	std::vector<std::string> contents(start, end);
+	file.close();
+
+	title = contents[0];
+	titleLabel.setString(title);
+
+	std::string val;
+	bool swapped = false;
+	for(char c : contents[1]){
+		if(c == '/'){
+			timeSig[swapped ? 1 : 0] = std::stoi(val);
+		}
+		else{
+			val.push_back(c);
+		}
+	}
+
+	timeSigLabels[0].setString(std::to_string(timeSig[0]));
+	timeSigLabels[1].setString(std::to_string(timeSig[1]));
+
+	notes.clear();
+	val.clear();
+	Note currentNote;
+	int param = 0;
+	for(char c : contents[2]){
+		if(c == ';'){
+			// next note
+			currentNote.fret = std::stoi(val);
+			param = 0;
+			val.clear();
+			notes.push_back(currentNote);
+		}
+		else if(c == ','){
+			switch(param){
+				case 0:
+					currentNote.lineIndex = std::stoi(val);
+					val.clear();
+					break;
+				case 1:
+					currentNote.lineOffset = std::stoi(val);
+					val.clear();
+					break;
+				case 2:
+					currentNote.division = std::stoi(val);
+					val.clear();
+					break;
+				default: break;
+			}
+			param++;
+		}
+		else{
+			val.push_back(c);
+		}
+	}
+}
+
+void App::launchFileDialog(){
+	// i love https://github.com/samhocevar/portable-file-dialogs/ it is my savior
+	auto selection = pfd::open_file("Select a .banji file", getDocumentFolder()+"/Banji").result();
+	if(!selection.empty()){
+		loadFromFile(selection[0]);
+	}
+}
+
 void App::onResize(){
 	sf::Vector2f size = static_cast<sf::Vector2f>(window.getSize());
 	scales[0] = size.x / 800;
@@ -260,6 +426,9 @@ void App::onResize(){
 	for(int i = 0; i < 2; i++){
 		timeSigLabels[i].setScale(scales[0]/3, scales[1]/3);
 	}
+
+	eightNoteCurly.setScale(scales[0]/30, scales[1]/30);
+	sixteenthNoteCurly.setScale(scales[0]/30, scales[1]/30);
 }
 
 void App::onClick(sf::Event event){
@@ -484,8 +653,11 @@ void App::onKeyPressed(sf::Event event){
 		else if(event.key.code == sf::Keyboard::Backspace){
 			deleteNote();
 		}
-		else if(event.key.code == sf::Keyboard::D){
-			// debug message
+		else if(event.key.control && event.key.code == sf::Keyboard::S){
+			saveToFile();
+		}
+		else if(event.key.control && event.key.code == sf::Keyboard::O){
+			launchFileDialog();
 		}
 	}
 }
