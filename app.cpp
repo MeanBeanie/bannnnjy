@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include <SFML/Graphics/CircleShape.hpp>
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Keyboard.hpp>
@@ -19,11 +20,11 @@ App::App(){
 	}
 	font.setSmooth(false);
 
-	division = timeSig[1];
+	hoveredNote.division = timeSig[1];
 
 	divisionChanger.setFont(font);
 	divisionChanger.setCharacterSize(CHAR_SIZE);
-	divisionChanger.setString("< 1/" + std::to_string(division) + " >");
+	divisionChanger.setString("< 1/" + std::to_string(hoveredNote.division) + " >");
 	divisionChanger.setPosition(2, 2);
 
 	fretChanger.setFont(font);
@@ -39,12 +40,12 @@ App::App(){
 	for(int i = 0; i < 2; i++){
 		timeSigLabels[i].setFont(font);
 		timeSigLabels[i].setCharacterSize(CHAR_SIZE);
+		timeSigLabels[i].setScale(scales[0]/3, scales[1]/3);
 		timeSigLabels[i].setString(std::to_string(timeSig[i]));
 		timeSigLabels[i].setFillColor(sf::Color::Black);
 	}
 
-	cursor.setFillColor(sf::Color(200, 200, 200));
-	cursor.setRadius(5.0f);
+	hoveredNote.fret = 0;
 }
 
 void App::run(){
@@ -56,162 +57,177 @@ void App::run(){
 		while(window.pollEvent(event)){
 			switch(event.type){
 				case sf::Event::Closed: quit(); break;
-				case sf::Event::Resized: resizeCallback(); break;
+				case sf::Event::Resized: onResize(); break;
 				case sf::Event::MouseButtonPressed: onClick(event); break;
 				case sf::Event::MouseMoved: mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window)); break;
-				case sf::Event::KeyPressed: keyboardCallback(event); break;
+				case sf::Event::KeyPressed: onKeyPressed(event); break;
 				default: break;
 			}
 		}
 
 		window.clear(sf::Color::White);
 
-		// ui
 		window.draw(sidebarBackground);
 		window.draw(divisionChanger);
 		window.draw(fretChanger);
 		window.draw(titleLabel);
 
-		bool drawCurs = true;
-		sf::Vector2f cursorPos;
+		sf::Vector2f dist(99, 99);
+
 		int count = 0;
-		int stanzaStart = 0;
-		int stanza = -1;
-		for(int i = 40*scales[1]; i+((5-count)*scales[1]) < 440*scales[1]; i += ((440*scales[1])-(40*scales[1]))/40){
-			if(count == 0){
-				stanzaStart = i;
-				stanza++;
+		sf::RectangleShape rect(sf::Vector2f(780*scales[0], scales[1]));
+		rect.setFillColor(sf::Color::Black);
+		std::vector<int> linePixelStarties;
+		int lineIndex = 0;
+		int lineOffset = 0;
+		linePixelStarties.push_back((42*scales[1])-(10*scales[1]));
+		bool firstRound = true;
+		for(int y = 42*scales[1]; y < 430*scales[1]; y += 10*scales[1]){
+			if(count < 5){
+				if(mousePos.y > 35*scales[1] && std::abs(mousePos.y-y) < dist.y){
+					dist.y = std::abs(mousePos.y-y);
+					hoveredNote.lineOffset = lineOffset;
+					hoveredNote.lineIndex = lineIndex;
+				}
+				rect.setPosition(10*scales[0], y);
+				window.draw(rect);
+				lineOffset++;
 			}
-			else if(count == 5){
-				count++;
-				continue;
-			}
-			else if(count == 6){
+			else if(count >= 7){
 				count = 0;
+				linePixelStarties.push_back(y);
+				lineIndex++;
+				lineOffset = 0;
+				firstRound = false;
 				continue;
 			}
-			if(count == 1 && i - ((440*scales[1])-(40*scales[1]))/40 <= 40*scales[1]){
-				timeSigLabels[0].setPosition(15*scales[0], i - ((440*scales[1])-(40*scales[1]))/80);
-				window.draw(timeSigLabels[0]);
+			if(firstRound){
+				if(count == 1){
+					timeSigLabels[0].setPosition(10*scales[0], y-12*scales[1]);
+					window.draw(timeSigLabels[0]);
+				}
+				else if(count == 2){
+					timeSigLabels[1].setPosition(10*scales[0], y-3*scales[1]);
+					window.draw(timeSigLabels[1]);
+				}
 			}
-			else if(count == 2 && i - ((440*scales[1])-(40*scales[1]))/20 <= 40*scales[1]){
-				timeSigLabels[1].setPosition(15*scales[0], i - ((440*scales[1])-(40*scales[1]))/80);
-				window.draw(timeSigLabels[1]);
-			}
-
-			sf::RectangleShape r(sf::Vector2f(window.getSize().x - (20*scales[1]), scales[1]));
-			r.setPosition(10*scales[0], i);
-			r.setFillColor(sf::Color::Black);
-			if(std::abs(mousePos.y - i) < 10*scales[1]){
-				cursorPos.y = i - cursor.getRadius();
-				selected[0] = i / scales[1];
-				selected[2] = stanzaStart / scales[1];
-				selected[3] = stanza;
-			}
-
-			window.draw(r);
 			count++;
 		}
 
-		float barWidth = window.getSize().x - (20*scales[1]);
-		int lowest = 99;
-		for(float i = 1; i < 24.f; i += (float)timeSig[1]/(float)division){
-			int dist = std::abs(((barWidth*i)/24)-mousePos.x);
-			if(dist < lowest){
-				if(timeSig[1]/lastBeatDiv(i).div == 2 && i - lastBeatDiv(i).beat < 2){
-					continue;
-				}
-				else if(timeSig[1]/lastBeatDiv(i).div == 4 && i - lastBeatDiv(i).beat < 4){
-					continue; 
-				} 
-				else if(timeSig[1]/lastBeatDiv(i).div == 8 && i - lastBeatDiv(i).beat < 8){
-					continue;
-				}
-				else if(timeSig[1]/lastBeatDiv(i).div == 16 && i - lastBeatDiv(i).beat < 16){
-					continue;
-				}
-				lowest = dist;
-				cursorPos.x = (barWidth*i)/24;
-				selected[1] = i;
-			}
-		}
-//			for(float i = 0.f; i < 32.f; i += (float)timeSig[1]/(float)division){
-//				int dist = std::abs(((barWidth*i)/24)-mousePos.x);
-//				if(dist < lowest){
-//					lowest = dist;
-//					cursorPos.x = (barWidth*i)/24;
-//					selected[1] = i;
-//				}
-//			}
+		float x = 25*scales[0];
+		lineIndex = 0;
+		float beatsPassed = 0.f;
 
-		sf::Text noteText;
-		noteText.setCharacterSize(CHAR_SIZE);
-		noteText.setScale(scales[0]/4, scales[1]/4);
-		noteText.setFont(font);
-		noteText.setFillColor(sf::Color::Black);
-		bool failed = true;
+		sf::Text fred;
+		fred.setFont(font);
+		fred.setCharacterSize(CHAR_SIZE);
+		fred.setScale(scales[0]/4, scales[1]/4);
+		fred.setFillColor(sf::Color::Black);
+		
+		sf::RectangleShape measureBar(sf::Vector2f(2*scales[0], 50*scales[1]));
+		measureBar.setFillColor(sf::Color::Black);
+
+		sf::RectangleShape divisionIndicator(sf::Vector2f(scales[0], 18*scales[1]));
+		divisionIndicator.setFillColor(sf::Color::Black);
+		sf::RectangleShape dualFractyNotes(sf::Vector2f(35*scales[0], scales[1]));
+		dualFractyNotes.setFillColor(sf::Color::Black);
+
+		selectedIndex = -1;
 		for(int i = 0; i < notes.size(); i++){
-			if(selected[1] == notes[i].beat && selected[0] == notes[i].line){
-				hoveringNote = i;
-				failed = false;
-				drawCurs = false;
-			}
-			noteText.setString(std::to_string(notes[i].fret));
-			if(notes[i].isOver){
-				noteText.setFillColor(sf::Color::Red);
-			}
-			else{
-				noteText.setFillColor(sf::Color::Black);
-			}
+			float noteScale = (float)timeSig[1]/notes[i].division;
 
-			noteText.setPosition((notes[i].beat*barWidth)/24, (notes[i].line*scales[1]) - noteText.getGlobalBounds().height);
-			window.draw(noteText);
-		}
-		if(failed){
-			hoveringNote = -1;
-		}
+			fred.setString(std::to_string(notes[i].fret));
+			fred.setPosition(x, linePixelStarties[lineIndex]+notes[i].lineOffset*10*scales[1]);
+			window.draw(fred);
 
-		// measure line arteeste
-		for(int j = 0; j < stanza; j++){
-			// goes by 1/16ths to account for a x/1 time sig with 1/16th notes
-			float beatsPassed = 0.f;
-			for(float i = 0; i < 24; i += 0.0625){
-				if(divAtBeat(i, j).div != -1){
-					beatsPassed += (float)timeSig[1]/(float)divAtBeat(i, j).div;
+			divisionIndicator.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]);
+			if(notes[i].division == 8){
+				if(i+1 < notes.size()){
+					if(notes[i+1].division == 8 && beatsPassed + noteScale < timeSig[0]){
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+					}
+					else if(notes[i+1].division == 16 && beatsPassed + (timeSig[1]/16.f) < timeSig[0]){
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2)+17.5*scales[0]*noteScale, linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(17.5f*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+					}
 				}
-				if(beatsPassed >= timeSig[0]){
-					if(beatsPassed > timeSig[0]){
-						notes[divAtBeat(i).index].isOver = true;
-					} 
-					sf::RectangleShape rect(sf::Vector2f(scales[0], 40*scales[1]));
-					rect.setFillColor(sf::Color::Black);
-					if(timeSig[1]/divAtBeat(i).div <= 1){
-						rect.setPosition((((i)*barWidth)/24)+(10*scales[0]), divAtBeat(i, j).stanzaStart*scales[1]);
-					}
-					else if(timeSig[1]/divAtBeat(i).div == 2){
-						rect.setPosition((((i+1)*barWidth)/24)+(10*scales[0]), divAtBeat(i, j).stanzaStart*scales[1]);
-					}
-					else if(timeSig[1]/divAtBeat(i).div == 4){
-						rect.setPosition((((i+3)*barWidth)/24)+(10*scales[0]), divAtBeat(i, j).stanzaStart*scales[1]);
-					}
-					else if(timeSig[1]/divAtBeat(i).div == 8){
-						rect.setPosition((((i+7)*barWidth)/24)+(10*scales[0]), divAtBeat(i, j).stanzaStart*scales[1]);
-					}
-					else if(timeSig[1]/divAtBeat(i).div == 16){
-						rect.setPosition((((i+15)*barWidth)/24)+(10*scales[0]), divAtBeat(i, j).stanzaStart*scales[1]);
-					}
-					window.draw(rect);
-					beatsPassed = 0.f;
+				else{
+					// draw lil curly
 				}
 			}
-		}
+			if(notes[i].division == 16){
+				if(i+1 < notes.size()){
+					if(notes[i+1].division == 16 && beatsPassed + noteScale < timeSig[0]){
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
+						window.draw(dualFractyNotes);
+					}
+					else if(notes[i+1].division == 8 && beatsPassed + (timeSig[1]/8.f) < timeSig[0]){
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
+						dualFractyNotes.setSize(sf::Vector2f(17.5f*scales[0]*noteScale, scales[1]));
+						window.draw(dualFractyNotes);
+					}
+				}
+				else{
+					// draw curly fry
+				}
+			}
+			window.draw(divisionIndicator);
 
-		if(drawCurs && mousePos.y > 35*scales[1] && (mousePos.x > 10*scales[1] && mousePos.x < window.getSize().x - (20*scales[1]))){
-			cursor.setPosition(cursorPos);
-			window.draw(cursor);
+			if(towers.contains(i)){
+				auto range = towers.equal_range(i);
+				for(auto link = range.first; link != range.second; link++){
+					fred.setString(std::to_string(link->second.fret));
+					fred.setPosition(x, linePixelStarties[lineIndex]+link->second.lineOffset*10*scales[1]);
+					window.draw(fred);
+				}
+			}
+
+			if(std::abs(mousePos.x - x) < 15*scales[0] && std::abs(mousePos.x - x) < dist.x){
+				dist.x = std::abs(mousePos.x - x);
+				selectedIndex = i;
+			}
+			
+			x += 35*scales[0]*noteScale;
+			
+			beatsPassed += noteScale;
+			if(beatsPassed == timeSig[0]){
+				measureBar.setPosition(x, linePixelStarties[lineIndex]);
+				x += 5*scales[0];
+				window.draw(measureBar);
+				beatsPassed = 0.f;
+			}
+			else if(beatsPassed > timeSig[0]){
+				measureBar.setFillColor(sf::Color::Red);
+				measureBar.setPosition(x, linePixelStarties[lineIndex]);
+				x += 5*scales[0];
+				window.draw(measureBar);
+				beatsPassed = 0.f;
+			}
+			
+			if(x >= 760*scales[0] && i+1 < notes.size()){
+				x = 25*scales[0];
+				lineIndex++;
+				if(lineIndex >= linePixelStarties.size()){
+					// TODO add a lil scrolly wolly
+					break;
+				}
+			}
 		}
 
 		window.display();
+
 		if(clock.getElapsedTime().asMilliseconds() < 16){
 			std::this_thread::sleep_for(std::chrono::milliseconds(16-clock.getElapsedTime().asMilliseconds()));
 		}
@@ -224,7 +240,7 @@ void App::quit(){
 	window.close();
 }
 
-void App::resizeCallback(){
+void App::onResize(){
 	sf::Vector2f size = static_cast<sf::Vector2f>(window.getSize());
 	scales[0] = size.x / 800;
 	scales[1] = size.y / 450;
@@ -232,20 +248,18 @@ void App::resizeCallback(){
 
 	sidebarBackground.setSize(sf::Vector2f(800.f * scales[0], 22.f * scales[1]));
 	
-	divisionChanger.setScale(scales[0]/4, scales[1]/4);
+	divisionChanger.setScale(scales[0]/CHAR_SCALE, scales[1]/CHAR_SCALE);
 	divisionChanger.setPosition(2*scales[0], 2*scales[1]);
 
-	fretChanger.setScale(scales[0]/4, scales[1]/4);
+	fretChanger.setScale(scales[0]/CHAR_SCALE, scales[1]/CHAR_SCALE);
 	fretChanger.setPosition((20*scales[0])+divisionChanger.getGlobalBounds().width, 2*scales[1]);
 
-	titleLabel.setScale(scales[0]/4, scales[1]/4);
+	titleLabel.setScale(scales[0]/CHAR_SCALE, scales[1]/CHAR_SCALE);
 	titleLabel.setPosition(window.getSize().x-(10*scales[0])-(titleLabel.getGlobalBounds().width), 2*scales[1]);
 
 	for(int i = 0; i < 2; i++){
-		timeSigLabels[i].setScale(scales[0]/4, scales[1]/4);
+		timeSigLabels[i].setScale(scales[0]/3, scales[1]/3);
 	}
-
-	cursor.setRadius(5.f * scales[1]);
 }
 
 void App::onClick(sf::Event event){
@@ -280,106 +294,151 @@ void App::onClick(sf::Event event){
 		} 
 		else if(timeSigLabels[1].getGlobalBounds().contains(mousePos)){
 			status = 3;
-		} 
-		else if(mousePos.y > 35*scales[1] && (mousePos.x > 10*scales[1] && mousePos.x < window.getSize().x - (20*scales[1]))){
-			if(hoveringNote >= 0){
-				notes[hoveringNote].fret = fret;
-				bool failed = false;
-				for(int i = 0; i < notes.size(); i++){
-					if(i == hoveringNote){
-						continue;
-					}
-					if(notes[i].beat == selected[1]){
-						if(division != notes[i].division){
-							failed = true;
-						}
-					}
-				}
-				if(!failed){
-					notes[hoveringNote].division = division;
-				}
-			}
-			else{
+		}
+		else if(mousePos.y > 35*scales[1]){
+			if(selectedIndex == -1){
 				Note note;
-				note.fret = fret;
-				note.division = division;
-				note.line = selected[0];
-				note.beat = selected[1];
-				note.stanzaStart = selected[2];
-				note.stanza = selected[3];
-				// i know linear search is slower than my mile time
-				// but like fuck you i dont wanna do this efficiently
-				bool failed = false;
-				for(int i = 0; i < notes.size(); i++){
-					if(notes[i].beat == note.beat){
-						if(note.division != notes[i].division){
-							// difference is a sin, notes are totally racist
-							failed = true;
-						}
+				note.fret = hoveredNote.fret;
+				note.division = hoveredNote.division;
+				note.lineOffset = hoveredNote.lineOffset;
+				note.lineIndex = hoveredNote.lineIndex;
+				notes.push_back(note);
+			}
+			else if(selectedIndex >= 0 && hoveredNote.lineIndex == notes[selectedIndex].lineIndex){
+				if(hoveredNote.lineOffset == notes[selectedIndex].lineOffset){
+					notes[selectedIndex].fret = hoveredNote.fret;
+					notes[selectedIndex].division = hoveredNote.division;
+
+					auto range = towers.equal_range(selectedIndex);
+					for(auto i = range.first; i != range.second; i++){
+						i->second.division = hoveredNote.division;
 					}
 				}
-				if(!failed){
-					notes.push_back(note);
+				else{
+					bool failedLinkCheck = true;
+					
+					auto range = towers.equal_range(selectedIndex);
+					for(auto i = range.first; i != range.second; i++){
+						if(hoveredNote.lineOffset == i->second.lineOffset){
+							failedLinkCheck = false;
+							i->second.fret = hoveredNote.fret;
+							i->second.division = hoveredNote.division;
+							for(auto j = range.first; j != range.second; j++){
+								if(j != i){
+									j->second.division = hoveredNote.division;
+								}
+							}
+						}
+						notes[selectedIndex].division = hoveredNote.division;
+					}
+					
+					if(failedLinkCheck){
+						Note note;
+						note.fret = hoveredNote.fret;
+						note.division = hoveredNote.division;
+						note.lineOffset = hoveredNote.lineOffset;
+						note.lineIndex = hoveredNote.lineIndex;
+						towers.insert(std::pair<int, Note>(selectedIndex, note));
+					}
 				}
 			}
 		}
-	}
-
-	if(hoveringNote != -1 && event.mouseButton.button == sf::Mouse::Right){
-		notes.erase(notes.begin()+hoveringNote);
-	}
+	} // endif mouse button is left click
+	else if(event.mouseButton.button == sf::Mouse::Right){
+		deleteNote();
+	} // endif mouse button is right click
 }
 
 void App::changeDivision(bool up, bool loop){
 	if(up){
-		division /= 2;
+		hoveredNote.division /= 2;
 	}
 	else{
-		division *= 2;
+		hoveredNote.division *= 2;
 	}
 
 	if(!loop){
-		if(division < 1){
-			division = 1;
+		if(hoveredNote.division < 1){
+			hoveredNote.division = 1;
 		}
-		else if(division > 16){
-			division = 16;
+		else if(hoveredNote.division > 16){
+			hoveredNote.division = 16;
 		}
 	}
 	else{
-		if(division < 1){
-			division = 16;
+		if(hoveredNote.division < 1){
+			hoveredNote.division = 16;
 		}
-		else if(division > 16){
-			division = 1;
+		else if(hoveredNote.division > 16){
+			hoveredNote.division = 1;
 		}
 	}
 
-	divisionChanger.setString("< 1/" + std::to_string(division) + " >");
+	divisionChanger.setString("< 1/" + std::to_string(hoveredNote.division) + " >");
 }
 
 void App::changeFret(bool up, int specific){
 	if(up){
-		fret++;
-		if(fret > 21){
-			fret = 21;
+		hoveredNote.fret++;
+		if(hoveredNote.fret > 21){
+			hoveredNote.fret = 21;
 		}
 	}
 	else{
-		fret--;
-		if(fret < 0){
-			fret = 0;
+		hoveredNote.fret--;
+		if(hoveredNote.fret < 0){
+			hoveredNote.fret = 0;
 		}
 	}
 
 	if(specific != -1){
-		fret = specific;
+		hoveredNote.fret = specific;
 	}
 
-	fretChanger.setString("< " + std::to_string(fret) + " >");
+	fretChanger.setString("< " + std::to_string(hoveredNote.fret) + " >");
 }
 
-void App::keyboardCallback(sf::Event event){
+void App::deleteNote(){
+	if(selectedIndex < 0){
+		return;
+	}
+	auto range = towers.equal_range(selectedIndex);
+
+	// if hitting master node, move master node to first tower node
+	if(hoveredNote.lineIndex == notes[selectedIndex].lineIndex && hoveredNote.lineOffset == notes[selectedIndex].lineOffset){
+		bool foundTowerNode = false;
+		for(auto i = range.first; i != range.second; i++){
+			notes[selectedIndex] = i->second;
+			foundTowerNode = true;
+			towers.erase(i);
+			break;
+		}
+
+		if(!foundTowerNode){
+			notes.erase(notes.begin()+selectedIndex);
+			// iterate through towers more than the selected index and shift them back one
+			std::multimap<int, Note> temp;
+			for(auto i = towers.begin(); i != towers.end();){
+				Note val = i->second;
+				int key = i->first;
+				temp.insert({key > selectedIndex ? key - 1 : key, val});
+				i = towers.erase(i);
+			}
+
+			towers = std::move(temp);
+		}
+	}
+	else{
+		for(auto i = range.first; i != range.second; i++){
+			if(i->second.lineIndex == hoveredNote.lineIndex && i->second.lineOffset == hoveredNote.lineOffset){
+				towers.erase(i);
+				break;
+			}
+		}
+	}
+}
+
+void App::onKeyPressed(sf::Event event){
 	if(status == 1){
 		if(event.key.code == sf::Keyboard::Backspace && title.length() > 0){
 			title.pop_back();
@@ -401,12 +460,14 @@ void App::keyboardCallback(sf::Event event){
 	else if(status == 2){
 		if(event.key.code >= sf::Keyboard::Num1 && event.key.code <= sf::Keyboard::Num9){
 			timeSig[0] = event.key.code - sf::Keyboard::Num0;
+			timeSigLabels[0].setString(std::to_string(timeSig[0]));
 			status = 0;
 		}
 	}
 	else if(status == 3){
 		if(event.key.code == sf::Keyboard::Num8 || event.key.code == sf::Keyboard::Num4 || event.key.code == sf::Keyboard::Num2){
 			timeSig[1] = event.key.code - sf::Keyboard::Num0;
+			timeSigLabels[1].setString(std::to_string(timeSig[1]));
 			status = 0;
 		}
 	}
@@ -421,57 +482,10 @@ void App::keyboardCallback(sf::Event event){
 			changeFret(false);
 		}
 		else if(event.key.code == sf::Keyboard::Backspace){
-			if(hoveringNote != -1){
-				notes.erase(notes.begin()+hoveringNote);
-			}
+			deleteNote();
 		}
 		else if(event.key.code == sf::Keyboard::D){
-			// leave this at the bottom of if tower, so delete easier later
-			std::cout << "DEBUG OUTPUT\n"
-				<< "Notes: {\n";
-			for(int i = 0; i < notes.size(); i++){
-				std::cout << "Div: " << notes[i].division << "\n"
-					<< "Fret: " << notes[i].fret << "\n"
-					<< "Beat: " << notes[i].beat << "\n"
-					<< "Line: " << notes[i].line << "\n"
-					<< "Index: " << i << "\n"
-					<< "------------\n";
-			}
-			std::cout << "Selected: {" << selected[0] << ", " << selected[1] << "}\n"
-				<< "Hovered Note: " << hoveringNote << "\n"
-				<< std::endl;
+			// debug message
 		}
 	}
-}
-
-// prayers and so much duct tape
-Data App::lastBeatDiv(float beat){
-	Data data;
-	data.div = -1;
-	// again linear search slow, my brain is the same
-	int lowest = 99;
-	for(int i = 0; i < notes.size(); i++){
-		// can't be in the future so must be above 0 to be behind
-		int dist = beat - notes[i].beat;
-		if(dist > 0 && dist < lowest){
-			lowest = dist;
-			data.beat = notes[i].beat;
-			data.div = notes[i].division;
-		}
-	}
-	return data;
-}
-
-Data App::divAtBeat(float beat, int stanza){
-	Data data;
-	data.div = -1;
-	for(int i = 0; i < notes.size(); i++){
-		if(notes[i].beat == beat && notes[i].stanza == stanza){
-			data.div = notes[i].division;
-			data.index = i;
-			data.stanzaStart = notes[i].stanzaStart;
-			data.stanza = notes[i].stanza;
-		}
-	}
-	return data;
 }
