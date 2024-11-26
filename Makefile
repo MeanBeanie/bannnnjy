@@ -6,4 +6,4 @@ linux:
 	@$(CC) *.cpp -o $(NAME)-linux $(CXXFLAGS)
 	@echo "Bilded"
 osx:
-	o64-clang++ *.cpp -O3 -o $(NAME)-macos --std=c++20 -lsfml-window -lsfml-graphics -lsfml-system
+	o64-clang++ *.cpp -O3 -o Bannnjy.app/Contents/MacOS/Bannnjy --std=c++20 -LBannnjy.app/Contents/Resources -lsfml-window -lsfml-graphics -lsfml-system
