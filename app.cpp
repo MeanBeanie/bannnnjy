@@ -6,10 +6,10 @@
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/Mouse.hpp>
-#include <SFML/Window/Window.h>
+#include <SFML/Window/Window.hpp>
 #include <SFML/Window/WindowStyle.hpp>
 #include <chrono>
-#include <filesystem>
+#include "ghc_filesystem.hpp"
 #include <fstream>
 #include <iostream>
 #include <thread>
@@ -30,7 +30,7 @@ App::App(){
 		std::cerr << "Failed to load font BreeSerif-Regular" << std::endl;
 		status = -1;
 	}
-	font.setSmooth(false);
+	//font.setSmooth(false);
 
 	hoveredNote.division = timeSig[1];
 
@@ -322,9 +322,10 @@ void App::saveToFile(){
 
 	try {
 		std::string documentPath = getDocumentFolder();
-		if(!std::filesystem::exists(documentPath+"/Banji")){
-			std::filesystem::create_directory(documentPath+"/Banji");
+		if(!ghc::filesystem::exists(documentPath+"/Banji")){
+			ghc::filesystem::create_directory(documentPath+"/Banji");
 		}
+
 		std::ofstream file(documentPath + "/Banji/" + title + ".banji");
 		if(file){
 			file << text;
