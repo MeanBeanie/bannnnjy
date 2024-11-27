@@ -26,7 +26,7 @@ App::App(){
 	window.create(sf::VideoMode(800, 450), "Bbannjjyy");
 	sidebarBackground.setSize(sf::Vector2f(800.f, 22.f));
 	sidebarBackground.setFillColor(sf::Color(175, 175, 175));
-	if(!font.loadFromFile("./rsrcs/BreeSerif-Regular.ttf")){
+	if(!font.loadFromFile("../Resources/BreeSerif-Regular.ttf")){
 		std::cerr << "Failed to load font BreeSerif-Regular" << std::endl;
 		status = -1;
 	}
@@ -59,11 +59,11 @@ App::App(){
 
 	hoveredNote.fret = 0;
 
-	if(!eightNoteCurlyTexture.loadFromFile("./rsrcs/eight-note-curl.png")){
+	if(!eightNoteCurlyTexture.loadFromFile("../Resources/eight-note-curl.png")){
 		std::cerr << "Failed to load texture for eight note properly" << std::endl;
 		status = -1;
 	}
-	if(!sixteenthNoteCurlyTexture.loadFromFile("./rsrcs/sixteeth-note-removebg-preview.png")){
+	if(!sixteenthNoteCurlyTexture.loadFromFile("../Resources/sixteeth-note-removebg-preview.png")){
 		std::cerr << "Failed to load texture for eight note properly" << std::endl;
 		status = -1;
 	}
@@ -302,6 +302,11 @@ std::string App::getDocumentFolder(){
 
 void App::saveToFile(){
 	std::string text;
+	for(int i =0;i < title.size(); i++){
+		if(title[i] == ' '){
+			title[i] = ',';
+		}
+	}
 	text += title;
 	text += "\n";
 	text += std::to_string(timeSig[0]);
@@ -345,6 +350,10 @@ void App::loadFromFile(std::string path){
 	std::istream_iterator<std::string> start(file), end;
 	std::vector<std::string> contents(start, end);
 	file.close();
+
+	for(int i = 0; i < contents.size(); i++){
+		std::cout << contents[i] << std::endl;
+	}
 
 	title = contents[0];
 	titleLabel.setString(title);
