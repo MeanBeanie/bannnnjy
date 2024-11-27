@@ -357,6 +357,21 @@ void App::saveToFile(){
 		text += ",";
 		text += std::to_string(notes[i].fret);
 		text += ";";
+		
+		auto range = towers.equal_range(i);
+		for(auto j = range.first; j != range.second; j++){
+			text += "T";
+			text += std::to_string(i);
+			text += ":";
+			text += std::to_string(j->second.lineIndex);
+			text += ",";
+			text += std::to_string(j->second.lineOffset);
+			text += ",";
+			text += std::to_string(j->second.division);
+			text += ",";
+			text += std::to_string(j->second.fret);
+			text += ";";
+		}
 	}
 
 	try {
@@ -385,11 +400,12 @@ void App::loadFromFile(std::string path){
 	std::vector<std::string> contents(start, end);
 	file.close();
 
-	for(int i = 0; i < contents.size(); i++){
-		std::cout << contents[i] << std::endl;
-	}
-
 	title = contents[0];
+	for(int i = 0; i < title.size(); i++){
+		if(title[i] == ','){
+			title[i] = ' ';
+		}
+	}
 	titleLabel.setString(title);
 
 	std::string val;
@@ -410,13 +426,29 @@ void App::loadFromFile(std::string path){
 	val.clear();
 	Note currentNote;
 	int param = 0;
+	int isTower = -1;
 	for(char c : contents[2]){
-		if(c == ';'){
+		if(c == ':'){
+			isTower = std::stoi(val);
+			val.clear();
+		}
+		else if(c == 'T'){
+			isTower = -2;
+			val.clear();
+			continue;
+		}
+		else if(c == ';'){
 			// next note
 			currentNote.fret = std::stoi(val);
 			param = 0;
 			val.clear();
-			notes.push_back(currentNote);
+			if(isTower < 0){
+				notes.push_back(currentNote);
+			}
+			else{
+				towers.insert(std::pair<int, Note>(isTower, currentNote));
+				isTower = -1;
+			}
 		}
 		else if(c == ','){
 			switch(param){
@@ -440,6 +472,8 @@ void App::loadFromFile(std::string path){
 			val.push_back(c);
 		}
 	}
+
+	onResize();
 }
 
 void App::launchFileDialog(){
