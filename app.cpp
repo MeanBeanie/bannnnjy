@@ -21,6 +21,11 @@
 #include <unistd.h>
 #include <sys/types.h>
 #endif
+#ifndef __APPLE__
+#define COMMAND 1
+#else
+#define COMMAND 0
+#endif
 
 App::App(){
 	window.create(sf::VideoMode(800, 450), "Bbannjjyy");
@@ -165,7 +170,7 @@ void App::run(){
 		sf::Text fred;
 		fred.setFont(font);
 		fred.setCharacterSize(CHAR_SIZE);
-		fred.setScale(scales[0]/4, scales[1]/4);
+		fred.setScale(scales[0]/4, scales[1]/4);	
 		fred.setFillColor(sf::Color::Black);
 		
 		sf::RectangleShape measureBar(sf::Vector2f(2*scales[0], 50*scales[1]));
@@ -180,6 +185,9 @@ void App::run(){
 		for(int i = 0; i < notes.size(); i++){
 			float noteScale = (float)timeSig[1]/notes[i].division;
 
+			if(notes[i].lineIndex != lineIndex){
+				notes[i].lineIndex = lineIndex;
+			}
 			fred.setString(std::to_string(notes[i].fret));
 			fred.setPosition(x, linePixelStarties[lineIndex]+notes[i].lineOffset*10*scales[1]);
 			window.draw(fred);
@@ -242,7 +250,7 @@ void App::run(){
 				}
 			}
 
-			if(std::abs(mousePos.x - x) < 15*scales[0] && std::abs(mousePos.x - x) < dist.x){
+			if(hoveredNote.lineIndex == notes[i].lineIndex && std::abs(mousePos.x - x) < 15*scales[0] && std::abs(mousePos.x - x) < dist.x){
 				dist.x = std::abs(mousePos.x - x);
 				selectedIndex = i;
 			}
@@ -680,11 +688,21 @@ void App::onKeyPressed(sf::Event event){
 		else if(event.key.code == sf::Keyboard::Backspace){
 			deleteNote();
 		}
-		else if(event.key.control && event.key.code == sf::Keyboard::S){
-			saveToFile();
+		else if(event.key.code == sf::Keyboard::Space){
+			std::cout << "fret: " << hoveredNote.fret << "\n"
+								<< "division: " << hoveredNote.division << "\n"
+								<< "lineIndex: " << hoveredNote.lineIndex << "\n"
+								<< "lineOffset: " << hoveredNote.lineOffset << std::endl;
+			std::cout << "selectedIndex: " << selectedIndex << std::endl;
+			std::cout << "-----" << std::endl;
 		}
-		else if(event.key.control && event.key.code == sf::Keyboard::O){
-			launchFileDialog();
+		else if((COMMAND ? event.key.system : event.key.control)){
+			if(event.key.control && event.key.code == sf::Keyboard::S){
+				saveToFile();
+			}
+			else if(event.key.control && event.key.code == sf::Keyboard::O){
+				launchFileDialog();
+			}
 		}
 	}
 }
