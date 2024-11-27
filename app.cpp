@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #endif
-#ifndef __APPLE__
+#if __APPLE__
 #define COMMAND 1
 #else
 #define COMMAND 0
