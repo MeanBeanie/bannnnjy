@@ -24,15 +24,40 @@
 
 App::App(){
 	window.create(sf::VideoMode(800, 450), "Bbannjjyy");
-	sidebarBackground.setSize(sf::Vector2f(800.f, 22.f));
-	sidebarBackground.setFillColor(sf::Color(175, 175, 175));
+
+#if __APPLE__
 	if(!font.loadFromFile("../Resources/BreeSerif-Regular.ttf")){
 		std::cerr << "Failed to load font BreeSerif-Regular" << std::endl;
 		status = -1;
 	}
-	//font.setSmooth(false);
+	if(!eightNoteCurlyTexture.loadFromFile("../Resources/eight-note-curl.png")){
+		std::cerr << "Failed to load texture for eight note properly" << std::endl;
+		status = -1;
+	}
+	if(!sixteenthNoteCurlyTexture.loadFromFile("../Resources/sixteeth-note-removebg-preview.png")){
+		std::cerr << "Failed to load texture for eight note properly" << std::endl;
+		status = -1;
+	}
+#endif
+#if __linux__
+	if(!font.loadFromFile("./rsrcs/BreeSerif-Regular.ttf")){
+		std::cerr << "Failed to load font BreeSerif-Regular" << std::endl;
+		status = -1;
+	}
+	if(!eightNoteCurlyTexture.loadFromFile("./rsrcs/eight-note-curl.png")){
+		std::cerr << "Failed to load texture for eight note properly" << std::endl;
+		status = -1;
+	}
+	if(!sixteenthNoteCurlyTexture.loadFromFile("./rsrcs/sixteeth-note-removebg-preview.png")){
+		std::cerr << "Failed to load texture for eight note properly" << std::endl;
+		status = -1;
+	}
+#endif
 
 	hoveredNote.division = timeSig[1];
+
+	sidebarBackground.setSize(sf::Vector2f(800.f, 22.f));
+	sidebarBackground.setFillColor(sf::Color(175, 175, 175));
 
 	divisionChanger.setFont(font);
 	divisionChanger.setCharacterSize(CHAR_SIZE);
@@ -57,16 +82,7 @@ App::App(){
 		timeSigLabels[i].setFillColor(sf::Color::Black);
 	}
 
-	hoveredNote.fret = 0;
-
-	if(!eightNoteCurlyTexture.loadFromFile("../Resources/eight-note-curl.png")){
-		std::cerr << "Failed to load texture for eight note properly" << std::endl;
-		status = -1;
-	}
-	if(!sixteenthNoteCurlyTexture.loadFromFile("../Resources/sixteeth-note-removebg-preview.png")){
-		std::cerr << "Failed to load texture for eight note properly" << std::endl;
-		status = -1;
-	}
+	hoveredNote.fret = 0;	
 
 	eightNoteCurly.setTexture(eightNoteCurlyTexture);
 	eightNoteCurly.setScale(scales[0]/30, scales[1]/30);
