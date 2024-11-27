@@ -10,3 +10,4 @@ done
 
 install_name_tool -change /opt/local/lib/libpng16.16.dylib @executable_path/../Frameworks/libpng16.16.dylib ./Bannnjy.app/Contents/Frameworks/libfreetype.6.dylib
 install_name_tool -change /opt/local/lib/libbrotlidec.1.dylib @executable_path/../Frameworks/libbrotlidec.1.dylib ./Bannnjy.app/Contents/Frameworks/libfreetype.6.dylib
+install_name_tool -change /opt/local/lib/libbrotlicommon.1.dylib @executable_path/../Frameworks/libbrotlicommon.1.dylib ./Bannnjy.app/Contents/Frameworks/libbrotlidec.1.dylib
