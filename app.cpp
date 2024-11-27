@@ -73,6 +73,7 @@ App::App(){
 
 	sixteenthNoteCurly.setTexture(sixteenthNoteCurlyTexture);
 	sixteenthNoteCurly.setScale(scales[0]/30, scales[1]/30);
+	onResize();
 }
 
 void App::run(){
