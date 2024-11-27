@@ -7,3 +7,5 @@ do
 	install_name_tool -change /opt/local/lib/$t @executable_path/../Frameworks/$t ./Bannnjy.app/Contents/Frameworks/libsfml-system.2.5.dylib
 	echo "$t done"
 done
+
+install_name_tool -change /opt/local/lib/libpng16.16.dylib @executable_path/../Frameworks/libpng16.16.dylib ./Bannnjy.app/Contents/Frameworks/libfreetype.6.dylib
