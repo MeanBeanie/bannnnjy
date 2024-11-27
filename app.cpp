@@ -93,7 +93,7 @@ App::App(){
 	eightNoteCurly.setScale(scales[0]/30, scales[1]/30);
 
 	sixteenthNoteCurly.setTexture(sixteenthNoteCurlyTexture);
-	sixteenthNoteCurly.setScale(scales[0]/30, scales[1]/30);
+	sixteenthNoteCurly.setScale(scales[0]/60, scales[1]/60);
 	onResize();
 }
 
@@ -109,17 +109,13 @@ void App::run(){
 				case sf::Event::Resized: onResize(); break;
 				case sf::Event::MouseButtonPressed: onClick(event); break;
 				case sf::Event::MouseMoved: mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window)); break;
+				case sf::Event::MouseWheelScrolled: onScroll(event); break;
 				case sf::Event::KeyPressed: onKeyPressed(event); break;
 				default: break;
 			}
 		}
 
 		window.clear(sf::Color::White);
-
-		window.draw(sidebarBackground);
-		window.draw(divisionChanger);
-		window.draw(fretChanger);
-		window.draw(titleLabel);
 
 		sf::Vector2f dist(99, 99);
 
@@ -129,17 +125,19 @@ void App::run(){
 		std::vector<int> linePixelStarties;
 		int lineIndex = 0;
 		int lineOffset = 0;
-		linePixelStarties.push_back((42*scales[1])-(10*scales[1]));
+		linePixelStarties.push_back((42*scales[1])-(10*scales[1])-scrollOffset);
 		bool firstRound = true;
-		for(int y = 42*scales[1]; y < 430*scales[1]; y += 10*scales[1]){
+		for(int y = 42*scales[1]-scrollOffset; y < 1430*scales[1]-scrollOffset; y += 10*scales[1]){
 			if(count < 5){
 				if(mousePos.y > 35*scales[1] && std::abs(mousePos.y-y) < dist.y){
 					dist.y = std::abs(mousePos.y-y);
 					hoveredNote.lineOffset = lineOffset;
 					hoveredNote.lineIndex = lineIndex;
 				}
-				rect.setPosition(10*scales[0], y);
-				window.draw(rect);
+				if(y > sidebarBackground.getGlobalBounds().height && y <= 430*scales[1]){
+					rect.setPosition(10*scales[0], y);
+					window.draw(rect);
+				}
 				lineOffset++;
 			}
 			else if(count >= 7){
@@ -150,7 +148,7 @@ void App::run(){
 				firstRound = false;
 				continue;
 			}
-			if(firstRound){
+			if(firstRound && y > sidebarBackground.getGlobalBounds().height){
 				if(count == 1){
 					timeSigLabels[0].setPosition(10*scales[0], y-12*scales[1]);
 					window.draw(timeSigLabels[0]);
@@ -188,50 +186,51 @@ void App::run(){
 			if(notes[i].lineIndex != lineIndex){
 				notes[i].lineIndex = lineIndex;
 			}
+
 			fred.setString(std::to_string(notes[i].fret));
 			fred.setPosition(x, linePixelStarties[lineIndex]+notes[i].lineOffset*10*scales[1]);
-			window.draw(fred);
+			if(linePixelStarties[lineIndex]+notes[i].lineOffset*10*scales[1] > sidebarBackground.getGlobalBounds().height){
+				window.draw(fred);
+			}
+
+			int divY = linePixelStarties[lineIndex]+55*scales[1];
 
 			divisionIndicator.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]);
-			if(notes[i].division == 8){
-				if(i+1 < notes.size()){
-					if(notes[i+1].division == 8 && beatsPassed + noteScale < timeSig[0]){
-						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
-						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
-						window.draw(dualFractyNotes);
-					}
-					else if(notes[i+1].division == 16 && beatsPassed + (timeSig[1]/16.f) < timeSig[0]){
-						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
-						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
-						window.draw(dualFractyNotes);
-						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2)+17.5*scales[0]*noteScale, linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
-						dualFractyNotes.setSize(sf::Vector2f(17.5f*scales[0]*noteScale, scales[1]));
-						window.draw(dualFractyNotes);
-					}
+			if(divY > sidebarBackground.getGlobalBounds().height && notes[i].division == 8){
+				if(i+1 < notes.size() && notes[i+1].division == 8 && beatsPassed + noteScale < timeSig[0]){
+					dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+					dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+					window.draw(dualFractyNotes);
 				}
-				else if(i == 0 || (i-1 >= 0 && notes[i-1].division != 8 && notes[i-1].division != 16)){
+				else if(i+1 < notes.size() && notes[i+1].division == 16 && beatsPassed + (timeSig[1]/16.f) < timeSig[0]){
+					dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+					dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+					window.draw(dualFractyNotes);
+					dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2)+17.5*scales[0]*noteScale, linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
+					dualFractyNotes.setSize(sf::Vector2f(17.5f*scales[0]*noteScale, scales[1]));
+					window.draw(dualFractyNotes);
+				}
+				else if(i == 0 || (i > 0 && notes[i-1].division != 8 && notes[i-1].division != 16 && beatsPassed + (timeSig[1]/16.f) < timeSig[0])){
 					// draw lil curly
 					eightNoteCurly.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]-(3*eightNoteCurly.getGlobalBounds().height)/4);
 					window.draw(eightNoteCurly);
 				}
 			}
-			else if(notes[i].division == 16){
-				if(i+1 < notes.size()){
-					if(notes[i+1].division == 16 && beatsPassed + noteScale < timeSig[0]){
-						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
-						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
-						window.draw(dualFractyNotes);
-						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
-						window.draw(dualFractyNotes);
-					}
-					else if(notes[i+1].division == 8 && beatsPassed + (timeSig[1]/8.f) < timeSig[0]){
-						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
-						dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
-						window.draw(dualFractyNotes);
-						dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
-						dualFractyNotes.setSize(sf::Vector2f(17.5f*scales[0]*noteScale, scales[1]));
-						window.draw(dualFractyNotes);
-					}
+			else if(divY > sidebarBackground.getGlobalBounds().height && notes[i].division == 16){
+				if(i+1 < notes.size() && notes[i+1].division == 16 && beatsPassed + noteScale < timeSig[0]){
+					dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+					dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+					window.draw(dualFractyNotes);
+					dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
+					window.draw(dualFractyNotes);
+				}
+				else if(i+1 < notes.size() && notes[i+1].division == 8 && beatsPassed + (timeSig[1]/8.f) < timeSig[0]){
+					dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+18*scales[1]);
+					dualFractyNotes.setSize(sf::Vector2f(35*scales[0]*noteScale, scales[1]));
+					window.draw(dualFractyNotes);
+					dualFractyNotes.setPosition(x+(fred.getGlobalBounds().width/2), linePixelStarties[lineIndex]+55*scales[1]+14*scales[1]);
+					dualFractyNotes.setSize(sf::Vector2f(17.5f*scales[0]*noteScale, scales[1]));
+					window.draw(dualFractyNotes);
 				}
 				else if(i == 0 || (i-1 >= 0 && notes[i-1].division != 8 && notes[i-1].division != 16)){
 					// draw curly fry
@@ -239,14 +238,18 @@ void App::run(){
 					window.draw(sixteenthNoteCurly);
 				}
 			}
-			window.draw(divisionIndicator);
+			if(divY > sidebarBackground.getGlobalBounds().height){
+				window.draw(divisionIndicator);
+			}
 
 			if(towers.contains(i)){
 				auto range = towers.equal_range(i);
 				for(auto link = range.first; link != range.second; link++){
-					fred.setString(std::to_string(link->second.fret));
-					fred.setPosition(x, linePixelStarties[lineIndex]+link->second.lineOffset*10*scales[1]);
-					window.draw(fred);
+					if(linePixelStarties[lineIndex]+link->second.lineOffset*10*scales[1] > sidebarBackground.getGlobalBounds().height){
+						fred.setString(std::to_string(link->second.fret));
+						fred.setPosition(x, linePixelStarties[lineIndex]+link->second.lineOffset*10*scales[1]);
+						window.draw(fred);
+					}
 				}
 			}
 
@@ -265,10 +268,12 @@ void App::run(){
 				beatsPassed = 0.f;
 			}
 			else if(beatsPassed > timeSig[0]){
-				measureBar.setFillColor(sf::Color::Red);
-				measureBar.setPosition(x, linePixelStarties[lineIndex]);
+				if(linePixelStarties[lineIndex] > 0){
+					measureBar.setFillColor(sf::Color::Red);
+					measureBar.setPosition(x, linePixelStarties[lineIndex]);
+					window.draw(measureBar);
+				}
 				x += 5*scales[0];
-				window.draw(measureBar);
 				beatsPassed = 0.f;
 			}
 			
@@ -282,6 +287,10 @@ void App::run(){
 			}
 		}
 
+		window.draw(sidebarBackground);
+		window.draw(divisionChanger);
+		window.draw(fretChanger);
+		window.draw(titleLabel);
 		window.display();
 
 		if(clock.getElapsedTime().asMilliseconds() < 16){
@@ -463,7 +472,7 @@ void App::onResize(){
 	}
 
 	eightNoteCurly.setScale(scales[0]/30, scales[1]/30);
-	sixteenthNoteCurly.setScale(scales[0]/30, scales[1]/30);
+	sixteenthNoteCurly.setScale(scales[0]/30, scales[1]/60);
 }
 
 void App::onClick(sf::Event event){
@@ -642,6 +651,15 @@ void App::deleteNote(){
 	}
 }
 
+void App::onScroll(sf::Event event){
+	if(event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel){
+		scrollOffset += event.mouseWheelScroll.delta * SCROLL_SENS;
+	}
+	if(scrollOffset < 0){
+		scrollOffset = 0;
+	}
+}
+
 void App::onKeyPressed(sf::Event event){
 	if(status == 1){
 		if(event.key.code == sf::Keyboard::Backspace && title.length() > 0){
@@ -688,15 +706,11 @@ void App::onKeyPressed(sf::Event event){
 		else if(event.key.code == sf::Keyboard::Backspace){
 			deleteNote();
 		}
-		else if(event.key.code == sf::Keyboard::Space){
-			std::cout << "fret: " << hoveredNote.fret << "\n"
-								<< "division: " << hoveredNote.division << "\n"
-								<< "lineIndex: " << hoveredNote.lineIndex << "\n"
-								<< "lineOffset: " << hoveredNote.lineOffset << std::endl;
-			std::cout << "selectedIndex: " << selectedIndex << std::endl;
-			std::cout << "-----" << std::endl;
+		else if(event.key.code == sf::Keyboard::D){
+			Note note = hoveredNote;
+			notes.push_back(note);
 		}
-		else if((COMMAND ? event.key.system : event.key.control)){
+		else if((!COMMAND ? event.key.system : event.key.control)){
 			if(event.key.control && event.key.code == sf::Keyboard::S){
 				saveToFile();
 			}
