@@ -10,6 +10,8 @@
 const int CHAR_SIZE = 64;
 const int CHAR_SCALE = 4;
 
+const float SCROLL_SENS = 2.f;
+
 struct Note {
 	Note(){
 		division = -1;
@@ -34,6 +36,7 @@ class App{
 		void onResize();
 		void onClick(sf::Event event);
 		void onKeyPressed(sf::Event event);
+		void onScroll(sf::Event event);
 
 		void changeDivision(bool up = true, bool loop = false);
 		void changeFret(bool up = true, int specific = -1);
@@ -47,6 +50,7 @@ class App{
 		int status = 0;
 		float scales[2] = {1.0f, 1.0f};
 		sf::Vector2f mousePos;
+		float scrollOffset = 0.f;
 
 		Note hoveredNote;
 		int selectedIndex = -1;
